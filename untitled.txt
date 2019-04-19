@@ -1,0 +1,25 @@
+def set_orientation(_df, new_dict=False):
+    # ШхВхГ(Д) = [0,1,2]
+    new_df = _df.copy()
+    new_df['Basis_asis'] = 10*np.argmax(_df[['Длина', 'Ширина', 'Высота']].values, axis=1) + np.argmin(_df[['Длина', 'Ширина', 'Высота']].values, axis=1)
+    if (False and os.path.isfile(BASIS_DICT_FILENAME)):
+        logging.info('Type-Basis dictionary will be loaded from file: {name}'.format(name=BASIS_DICT_FILENAME))
+        dict_types_basis = pickle.load(open(BASIS_DICT_FILENAME, 'rb'))
+    else:
+        logging.info('Type-Basis dictionary  will be created from scratch')
+        list_types = list(new_df['Тип'].unique())
+        dict_types_basis = {list_types[i]:new_df[new_df['Тип']==list_types[i]][['Basis_asis']].mode().loc[0, 'Basis_asis'] for i in range(len(list_types))}
+        pickle.dump(dict_types_basis, open(BASIS_DICT_FILENAME, 'wb'))
+    default_basis = new_df[['Basis_asis']].mode().loc[0, 'Basis_asis']
+    
+    for index, row in _df.iterrows():
+        row['Basis_tobe'] = dict_types_basis.get(row['Тип'], default_basis)
+        max_id = row['Basis_tobe'] // 10
+        min_id = row['Basis_tobe'] % 10
+        max_value = row[['Длина','Ширина','Высота']].max()
+        min_value = row[['Длина','Ширина','Высота']].min()
+        new_df.iloc[index, new_df.columns.get_loc('Длина') + max_id] = max_value
+        new_df.iloc[index, new_df.columns.get_loc('Длина') + min_id] = min_value
+        new_df.iloc[index, new_df.columns.get_loc('Длина') + (3-max_id-min_id)] = row[['Длина','Ширина','Высота']].sum() - max_value - min_value
+
+    return new_df
